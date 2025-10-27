@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admin Panel</title>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
+  // ===== Firebase Config =====
+  const firebaseConfig = {
+ 
+     apiKey: "AIzaSyDvGetVMvaQf9JklTQHCD73wy3fqaKOzVM",
+  authDomain: "uplib-8de86.firebaseapp.com",
+  projectId: "uplib-8de86",
+  storageBucket: "uplib-8de86.firebasestorage.app",
+  appId: "1:68560125445:web:f0ec30ad51c1757db1e66c",
+  measurementId: "G-S55BCCZ28F"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const storage = getStorage(app);
+
+  const bookTitleInput = document.getElementById("bookTitle");
+  const bookPDFInput = document.getElementById("bookPDF");
+  const uploadBtn = document.getElementById("uploadBtn");
+  const bookList = document.getElementById("bookList");
+  const orderList = document.getElementById("orderList");
+
+  // ===== Upload Book =====
+  uploadBtn.onclick = async () => {
+    const title = bookTitleInput.value.trim();
+    const file = bookPDFInput.files[0];
+    const type = document.querySelector('input[name="bookType"]:checked').value;
+
+    if (!title || !file) { alert("Title and PDF required."); return; }
+
+    const storageRef = sRef(storage, `books/${file.name}`);
+    await uploadBytes(storageRef, file);
+    const url = await getDownloadURL(storageRef);
+
+    const booksRef = ref(db, "books");
+    await push(booksRef, { title, url, type });
+
+    bookTitleInput.value = "";
+    bookPDFInput.value = "";
+  };
+
+  // ===== Display Books =====
+  const booksRef = ref(db, "books");
+  onValue(booksRef, (snapshot) => {
+    bookList.innerHTML = "";
+    snapshot.forEach(childSnap => {
+      const book = childSnap.val();
+      const div = document.createElement("div");
+      div.innerHTML = `<b>${book.title}</b> - <i>${book.type}</i> - <a href="${book.url}" target="_blank">View</a>`;
+      bookList.appendChild(div);
+    });
+  });
+
+  // ===== Display Orders =====
+  const ordersRef = ref(db, "orders");
+  onValue(ordersRef, (snapshot) => {
+    orderList.innerHTML = "";
+    snapshot.forEach(childSnap => {
+      const orderId = childSnap.key;
+      const order = childSnap.val();
+      const div = document.createElement("div");
+      div.innerHTML = `
+        <b>${order.book}</b> by ${order.name}, ${order.phone}, ${order.address} 
+        - Status: <b>${order.status || "Pending"}</b>
+        <button onclick="confirmOrder('${orderId}')">Confirm</button>
+      `;
+      orderList.appendChild(div);
+    });
+  });
+
+  window.confirmOrder = async (orderId) => {
+    const orderRef = ref(db, `orders/${orderId}`);
+    await update(orderRef, { status: "Confirmed" });
+    alert("Order confirmed!");
+  };
+</script>
+</head>
+<body>
+
+<h1>Admin Panel</h1>
+
+<h2>Upload New Book</h2>
+<input type="text" id="bookTitle" placeholder="Book Title" />
+<input type="file" id="bookPDF" accept="application/pdf" />
+
+<label><input type="radio" name="bookType" value="read" checked /> Read Only</label>
+<label><input type="radio" name="bookType" value="order" /> Orderable</label>
+
+<button id="uploadBtn">Upload PDF</button>
+
+<h2>All Books</h2>
+<div id="bookList"></div>
+
+<h2>Orders</h2>
+<div id="orderList"></div>
+
+</body>
+</html>

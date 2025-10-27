@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>User Profile</title>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, onValue, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+   apiKey: "AIzaSyDvGetVMvaQf9JklTQHCD73wy3fqaKOzVM",
+  authDomain: "uplib-8de86.firebaseapp.com",
+  projectId: "uplib-8de86",
+  storageBucket: "uplib-8de86.firebasestorage.app",
+  appId: "1:68560125445:web:f0ec30ad51c1757db1e66c",
+  measurementId: "G-S55BCCZ28F"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  const bookList = document.getElementById("bookList");
+  const bookSelect = document.getElementById("bookSelect");
+  const orderForm = document.getElementById("orderForm");
+
+  // ===== Display Books =====
+  const booksRef = ref(db, "books");
+  onValue(booksRef, (snapshot) => {
+    bookList.innerHTML = "";
+    bookSelect.innerHTML = `<option value="">Select Book</option>`;
+
+    snapshot.forEach(childSnap => {
+      const book = childSnap.val();
+
+      // Read books
+      if (book.type === "read") {
+        const div = document.createElement("div");
+        div.innerHTML = `<a href="${book.url}" target="_blank">${book.title}</a>`;
+        bookList.appendChild(div);
+      }
+
+      // Orderable books
+      if (book.type === "order") {
+        const option = document.createElement("option");
+        option.value = book.title;
+        option.textContent = book.title;
+        bookSelect.appendChild(option);
+      }
+    });
+  });
+
+  // ===== Place Order =====
+  orderForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const name = document.getElementById("name").value.trim();
+    const phone = document.getElementById("phone").value.trim();
+    const address = document.getElementById("address").value.trim();
+    const book = bookSelect.value;
+
+    if (!name || !phone || !address || !book) { alert("Fill all fields."); return; }
+
+    const ordersRef = ref(db, "orders");
+    await push(ordersRef, { name, phone, address, book, status: "Pending" });
+
+    alert("Order placed successfully!");
+    orderForm.reset();
+  };
+</script>
+</head>
+<body>
+
+<h1>User Profile</h1>
+
+<h2>Read Books</h2>
+<div id="bookList"></div>
+
+<h2>Order a Book</h2>
+<form id="orderForm">
+  <input type="text" id="name" placeholder="Your Name" required /><br/>
+  <input type="text" id="phone" placeholder="Phone Number" required /><br/>
+  <input type="text" id="address" placeholder="Address" required /><br/>
+  <select id="bookSelect" required></select><br/>
+  <button type="submit">Order Book</button>
+</form>
+
+</body>
+</html>
